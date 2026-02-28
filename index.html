@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robot Control</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --blue: #58a6ff;
+  --green: #3fb950;
+  --red: #da3633;
+  --accent: #1f6feb;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+header {
+  height: 36px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+header h1 { font-size: 13px; font-weight: 600; }
+.dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 5px var(--green);
+  flex-shrink: 0;
+}
+.dot.offline { background: var(--red); box-shadow: 0 0 5px var(--red); }
+#yoloTag {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+  background: #21262d;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.layout {
+  display: flex;
+  height: calc(100vh - 36px);
+}
+
+.pane-left {
+  flex: 0 0 55%;
+  position: relative;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+.pane-left img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.stream-badge {
+  position: absolute;
+  top: 6px; left: 6px;
+  background: rgba(31,111,235,0.85);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 8px;
+}
+.stream-offline {
+  position: absolute;
+  color: var(--muted);
+  font-size: 12px;
+  display: none;
+}
+
+.pane-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.pane-right::-webkit-scrollbar { width: 4px; }
+.pane-right::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.section {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+}
+.section-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 8px;
+}
+
+.slider-row { margin-bottom: 10px; }
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+.slider-label .val {
+  font-weight: 700;
+  color: var(--blue);
+  min-width: 36px;
+  text-align: right;
+}
+input[type=range] {
+  width: 100%;
+  height: 5px;
+  -webkit-appearance: none;
+  background: var(--border);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  background: var(--blue);
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(88,166,255,0.5);
+}
+.slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+.btn-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+.btn {
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #21262d;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--border); }
+.btn:active { transform: scale(0.96); }
+.btn.danger { background: #2d1a1a; border-color: var(--red); color: #f47067; }
+.btn.danger:hover { background: var(--red); color: #fff; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: #388bfd; }
+.btn.success { background: #162d1e; border-color: var(--green); color: var(--green); }
+.btn.success:hover { background: var(--green); color: #000; }
+.btn.muted { border-color: #444c56; color: var(--muted); }
+.btn.muted:hover { color: var(--text); }
+
+.rec-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.rec-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.rec-dot.on { background: var(--red); animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.music-info {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 6px;
+}
+.music-info small { display: block; font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+.music-ctrl { display: flex; gap: 5px; align-items: center; }
+.music-ctrl .sp { flex: 1; }
+
+.music-list {
+  max-height: 88px;
+  overflow-y: auto;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+.music-list::-webkit-scrollbar { width: 3px; }
+.music-list::-webkit-scrollbar-thumb { background: var(--border); }
+.music-item {
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.1s;
+}
+.music-item:hover { background: var(--border); color: var(--text); }
+.music-item.active { background: #0d2148; color: var(--blue); }
+
+#toast {
+  position: fixed;
+  bottom: 12px; right: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 13px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+  z-index: 999;
+}
+#toast.show { opacity: 1; }
+
+@media (max-width: 600px) {
+  .layout { flex-direction: column; }
+  .pane-left { flex: 0 0 45%; border-right: none; border-bottom: 1px solid var(--border); }
+  .pane-right { flex: 1; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="dot" id="dot"></div>
+  <h1>🤖 Robot Control</h1>
+  <span id="yoloTag">YOLO: ...</span>
+</header>
+
+<div class="layout">
+
+  <div class="pane-left">
+    <img id="segImg" src="/stream/seg" alt="seg"
+         onerror="this.style.display='none';document.getElementById('streamOffline').style.display='block'">
+    <div class="stream-badge">YOLO SEG · LIVE</div>
+    <div class="stream-offline" id="streamOffline">📷 스트림 연결 중...</div>
+  </div>
+
+  <div class="pane-right">
+
+    <div class="section">
+      <div class="section-title">🎮 Pan / Tilt</div>
+
+      <div class="slider-row">
+        <div class="slider-label">
+          <span>◀ Pan (좌우) ▶</span>
+          <span class="val" id="panVal">0°</span>
+        </div>
+        <input type="range" id="panSlider" min="-30" max="30" value="0" step="1"
+               oninput="onPan(this.value)">
+        <div class="slider-ticks"><span>-30°</span><span>0°</span><span>+30°</span></div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-label">
+          <span>▼ Tilt (상하) ▲</span>
+          <span class="val" id="tiltVal">0°</span>
+        </div>
+        <input type="range" id="tiltSlider" min="-10" max="10" value="0" step="1"
+               oninput="onTilt(this.value)">
+        <div class="slider-ticks"><span>-10°(아래)</span><span>0°</span><span>+10°(위)</span></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" onclick="quickMotor({pan:-30})">◀ -30°</button>
+        <button class="btn" onclick="quickMotor({pan:0})">Pan 0</button>
+        <button class="btn" onclick="quickMotor({pan:30})">+30° ▶</button>
+        <button class="btn" onclick="quickMotor({tilt:10})">▲ +10°</button>
+        <button class="btn" onclick="quickMotor({tilt:0})">Tilt 0</button>
+        <button class="btn" onclick="quickMotor({tilt:-10})">▼ -10°</button>
+        <button class="btn muted" onclick="resetMotors()">↺ 리셋</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🎙 녹음 (DECXIN · 볼륨 80%)</div>
+      <div class="btn-row">
+        <button class="btn danger" id="recBtn" onclick="startRec()">● 녹음</button>
+        <button class="btn" id="stopRecBtn" onclick="stopRec()" disabled>■ 중지</button>
+        <button class="btn success" id="playRecBtn" onclick="playRec()" disabled>▶ 재생</button>
+      </div>
+      <div class="rec-row">
+        <div class="rec-dot" id="recDot"></div>
+        <span id="recStatus">대기중</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🎵 음악</div>
+      <div class="music-info" id="musicName">
+        파일 없음
+        <small id="musicSub">~/Music/ 에 mp3/wav 추가</small>
+      </div>
+      <div class="music-ctrl">
+        <button class="btn" onclick="prevMusic()">⏮</button>
+        <button class="btn primary" id="playMusicBtn" onclick="toggleMusic()">▶</button>
+        <button class="btn" onclick="nextMusic()">⏭</button>
+        <div class="sp"></div>
+        <button class="btn muted" onclick="loadMusicList()" style="font-size:10px">🔄 목록</button>
+      </div>
+      <div class="music-list" id="musicList">
+        <div style="color:var(--muted);font-size:11px;padding:4px">로딩중...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = '';
+
+function toast(msg, ms=2200) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+async function checkServer() {
+  try {
+    const r = await fetch(`${API}/api/yolo/status`);
+    const d = await r.json();
+    document.getElementById('dot').classList.remove('offline');
+    document.getElementById('yoloTag').textContent =
+      d.model_loaded ? '✅ YOLO Ready' : '⚠️ YOLO 미로드';
+  } catch {
+    document.getElementById('dot').classList.add('offline');
+    document.getElementById('yoloTag').textContent = '❌ 오프라인';
+  }
+}
+
+// ── Motor ──
+let panV = 0, tiltV = 0, motorTimer = null;
+
+function onPan(v) {
+  panV = +v;
+  document.getElementById('panVal').textContent = v + '°';
+  clearTimeout(motorTimer);
+  motorTimer = setTimeout(() => sendMotor(panV, tiltV), 120);
+}
+function onTilt(v) {
+  tiltV = +v;
+  document.getElementById('tiltVal').textContent = v + '°';
+  clearTimeout(motorTimer);
+  motorTimer = setTimeout(() => sendMotor(panV, tiltV), 120);
+}
+
+async function sendMotor(pan, tilt) {
+  try {
+    await fetch(`${API}/api/motor`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pan, tilt})
+    });
+  } catch(e) { toast('모터 오류'); }
+}
+
+function quickMotor(obj) {
+  if (obj.pan !== undefined) {
+    panV = obj.pan;
+    document.getElementById('panSlider').value = panV;
+    document.getElementById('panVal').textContent = panV + '°';
+  }
+  if (obj.tilt !== undefined) {
+    tiltV = obj.tilt;
+    document.getElementById('tiltSlider').value = tiltV;
+    document.getElementById('tiltVal').textContent = tiltV + '°';
+  }
+  sendMotor(panV, tiltV);
+}
+
+async function resetMotors() {
+  await fetch(`${API}/api/motor/reset`, {method: 'POST'});
+  panV = 0; tiltV = 0;
+  document.getElementById('panSlider').value = 0;
+  document.getElementById('tiltSlider').value = 0;
+  document.getElementById('panVal').textContent = '0°';
+  document.getElementById('tiltVal').textContent = '0°';
+  toast('모터 리셋');
+}
+
+// ── Recording ──
+async function startRec() {
+  try {
+    await fetch(`${API}/api/audio/record/start`, {method:'POST'});
+    document.getElementById('recBtn').disabled = true;
+    document.getElementById('stopRecBtn').disabled = false;
+    document.getElementById('playRecBtn').disabled = true;
+    document.getElementById('recDot').classList.add('on');
+    document.getElementById('recStatus').textContent = '🔴 녹음중...';
+    toast('🔴 녹음 시작');
+  } catch { toast('녹음 오류'); }
+}
+
+async function stopRec() {
+  try {
+    const r = await fetch(`${API}/api/audio/record/stop`, {method:'POST'});
+    const d = await r.json();
+    document.getElementById('recBtn').disabled = false;
+    document.getElementById('stopRecBtn').disabled = true;
+    document.getElementById('recDot').classList.remove('on');
+    const kb = ((d.size_bytes||0)/1024).toFixed(1);
+    document.getElementById('recStatus').textContent = `완료 (${kb} KB)`;
+    document.getElementById('playRecBtn').disabled = false;
+    toast(`완료 · ${kb} KB`);
+  } catch { toast('중지 오류'); }
+}
+
+async function playRec() {
+  try {
+    await fetch(`${API}/api/audio/record/play`, {method:'POST'});
+    toast('▶ 재생');
+  } catch { toast('재생 오류'); }
+}
+
+// ── Music ──
+let musicFiles = [], isPlaying = false, curIdx = 0;
+
+async function loadMusicList() {
+  try {
+    const r = await fetch(`${API}/api/music/list`);
+    const d = await r.json();
+    musicFiles = d.files;
+    renderList();
+    if (d.count > 0) {
+      document.getElementById('musicName').childNodes[0].textContent = d.files[0].name;
+      document.getElementById('musicSub').textContent = `${d.count}개 파일`;
+    } else {
+      document.getElementById('musicSub').textContent = '~/Music/ 에 mp3/wav 추가';
+    }
+  } catch { toast('목록 로드 실패'); }
+}
+
+function renderList() {
+  const el = document.getElementById('musicList');
+  if (!musicFiles.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:4px">음악 없음</div>';
+    return;
+  }
+  el.innerHTML = musicFiles.map((f,i) =>
+    `<div class="music-item${i===curIdx?' active':''}" onclick="playByIdx(${f.index})">${f.name}</div>`
+  ).join('');
+}
+
+async function toggleMusic() {
+  isPlaying ? await stopMusic() : await playMusic(curIdx);
+}
+
+async function playMusic(idx) {
+  try {
+    const r = await fetch(`${API}/api/music/play`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({index: idx})
+    });
+    const d = await r.json();
+    isPlaying = true;
+    curIdx = d.index ?? idx;
+    document.getElementById('playMusicBtn').textContent = '⏸';
+    document.getElementById('musicName').childNodes[0].textContent = d.file || d.status;
+    renderList();
+    toast('▶ ' + (d.file || d.status));
+  } catch { toast('재생 오류'); }
+}
+
+async function stopMusic() {
+  await fetch(`${API}/api/music/stop`, {method:'POST'});
+  isPlaying = false;
+  document.getElementById('playMusicBtn').textContent = '▶';
+  toast('⏹ 중지');
+}
+
+function playByIdx(idx) { playMusic(idx); }
+
+async function nextMusic() {
+  try {
+    const r = await fetch(`${API}/api/music/next`, {method:'POST'});
+    const d = await r.json();
+    isPlaying = true; curIdx = d.index ?? curIdx;
+    document.getElementById('playMusicBtn').textContent = '⏸';
+    document.getElementById('musicName').childNodes[0].textContent = d.file || '';
+    renderList();
+  } catch { toast('다음 트랙 오류'); }
+}
+
+async function prevMusic() {
+  try {
+    const r = await fetch(`${API}/api/music/prev`, {method:'POST'});
+    const d = await r.json();
+    isPlaying = true; curIdx = d.index ?? curIdx;
+    document.getElementById('playMusicBtn').textContent = '⏸';
+    document.getElementById('musicName').childNodes[0].textContent = d.file || '';
+    renderList();
+  } catch { toast('이전 트랙 오류'); }
+}
+
+async function pollMusic() {
+  try {
+    const r = await fetch(`${API}/api/music/status`);
+    const d = await r.json();
+    if (isPlaying && !d.is_playing) {
+      isPlaying = false;
+      document.getElementById('playMusicBtn').textContent = '▶';
+    }
+  } catch {}
+}
+
+checkServer();
+loadMusicList();
+setInterval(checkServer, 15000);
+setInterval(pollMusic, 3000);
+</script>
+</body>
+</html>
