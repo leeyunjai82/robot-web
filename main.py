@@ -49,7 +49,7 @@ async def lifespan(app):
     # Load YOLO model
     if yolo_available:
         try:
-            yolo_model = YOLO("yolo26n-seg.pt")
+            yolo_model = YOLO("yolo11n-seg.pt")
             print("YOLO model loaded: yolo11n-seg.pt")
         except Exception as e:
             print(f"YOLO load failed: {e}")
@@ -136,11 +136,11 @@ def setup_mic_volume(volume: int = 80):
 
 
 def setup_servo_permission():
-    """/dev/ttyACM0 를 ptl:ptl 소유로 변경해 sudo 없이 servo 명령 사용 가능하게."""
+    """/dev/ttyACM0 를 circulus:circulus 소유로 변경해 sudo 없이 servo 명령 사용 가능하게."""
     tty = "/dev/ttyACM0"
     try:
-        subprocess.run(["sudo", "chown", "ptl:ptl", tty], timeout=3, check=True)
-        print(f"Permission set: chown ptl:ptl {tty}")
+        subprocess.run(["sudo", "chown", "circulus:circulus", tty], timeout=3, check=True)
+        print(f"Permission set: chown circulus:circulus {tty}")
     except Exception as e:
         print(f"WARNING: chown {tty} failed: {e}")
 
@@ -240,7 +240,7 @@ class MotorCmd(BaseModel):
 
 
 def run_servo(motor_id: int, angle_deg: float):
-    """Execute: servo write <id> <angle*10>  (chown으로 ptl:ptl 권한 설정됨)"""
+    """Execute: servo write <id> <angle*10>  (chown으로 circulus:circulus 권한 설정됨)"""
     val = int(round(angle_deg * 10))
     cmd = ["./servo", "write", str(motor_id), str(val)]
     try:
